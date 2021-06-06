@@ -1,7 +1,8 @@
-FROM debian:buster
+FROM debian:buster AS builder
 MAINTAINER muallin@gmail.com
 
-WORKDIR /src/git
+WORKDIR /src
+WORKDIR git
 
 # Update system
 RUN apt-get update && \
@@ -21,15 +22,23 @@ RUN cd /src/git/YACReaderLibraryServer && \
     qmake "CONFIG+=server_standalone" YACReaderLibraryServer.pro && \
     make  && \
     make install
-RUN cd /     && \
-    apt-get purge -y git wget build-essential && \
-    apt-get -y autoremove &&\
-    rm -rf /src && \
-    rm -rf /var/cache/apt
+
+FROM alpine:latest  
+
+RUN apk --no-cache add poppler-qt5 qt5-qtbase libc6-compat qt5-qtbase-sqlite
+
+WORKDIR /usr/bin
+
+COPY --from=builder /usr/bin/YACReaderLibraryServer .
+COPY --from=builder /src/git/release /usr/share/yacreader/
+
 ADD YACReaderLibrary.ini /root/.local/share/YACReader/YACReaderLibrary/
 
+#ADD entrypoint.sh /
+#RUN /bin/sh -c 'chmod +x /entrypoint.sh'
+
 # add specific volumes: configuration, comics repository, and hidden library data to separate them
-VOLUME ["/comics"]
+VOLUME ["/config", "/comics", "/comics/.yacreaderlibrary"]
 
 EXPOSE 8080
 
